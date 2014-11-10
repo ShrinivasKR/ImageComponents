@@ -1,6 +1,6 @@
 /*
  * ImageComponents.java
- * Starter code for A4 // Change this line to "A4 Solution by " + YOUR_NAME and UWNetID.
+ * Starter code for A4 // Change this line to "A4 Solution by " + Shrinivas Kopparam Ramanath and UWNetID: shrini.
  * 
  * 
  * CSE 373, University of Washington, Autumn 2014.
