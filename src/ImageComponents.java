@@ -85,9 +85,20 @@ public class ImageComponents extends JFrame implements ActionListener {
         }
     }  // Another part of your UNION-FIND implementation.  Also complete this one.
 
+    /**
+     * Returns the x coordinate of a pixel
+     * @param pixelID
+     * @return
+     */
     private int getXcoord(int pixelID) {
         return pixelID%w;
     }
+
+    /**
+     * Returns the y coordinate of a pixel
+     * @param pixelID
+     * @return
+     */
     private int getYcoord(int pixelID) {
         return pixelID/w;
     }
