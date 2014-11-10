@@ -55,7 +55,11 @@ public class ImageComponents extends JFrame implements ActionListener {
 
     int[][] parentID; // For your forest of up-trees.
 
-
+    /**
+     * Finds the root of the given pixelID
+     * @param pixelID
+     * @return
+     */
     int find(int pixelID) {
         while(parentID[getYcoord(pixelID)][getXcoord(pixelID)] != -1) {
             pixelID = parentID[getYcoord(pixelID)][getXcoord(pixelID)];
@@ -63,25 +67,22 @@ public class ImageComponents extends JFrame implements ActionListener {
         return pixelID;
     }// Part of your UNION-FIND implementation. You need to complete the implementation of this.
 
+    /**
+     * 
+     * @param pixelID1
+     * @param pixelID2
+     */
     void union(int pixelID1, int pixelID2) {
         pixelID1 = find(pixelID1);
         pixelID2 = find(pixelID2);
         int x1 = getXcoord(pixelID1);
         int x2 = getXcoord(pixelID2);
-        int y1 = getXcoord(pixelID1);
-        int y2 = getXcoord(pixelID2);
-        if(x1 != x2) {
-            if(x1 < x2) {
-                parentID[y2][x2] = pixelID1;
-            } else {
-                parentID[y1][x1] = pixelID2;
-            }
+        int y1 = getYcoord(pixelID1);
+        int y2 = getYcoord(pixelID2);
+        if(pixelID1 < pixelID2) {
+            parentID[y2][x2] = pixelID1;
         } else {
-            if(y1 < y2) {
-                parentID[y2][x2] = pixelID1;
-            } else {
-                parentID[y1][x1] = pixelID2;
-            }
+            parentID[y1][x1] = pixelID2;
         }
     }  // Another part of your UNION-FIND implementation.  Also complete this one.
 
@@ -91,7 +92,7 @@ public class ImageComponents extends JFrame implements ActionListener {
      * @return
      */
     private int getXcoord(int pixelID) {
-        return pixelID%w;
+        return pixelID % w;
     }
 
     /**
@@ -100,8 +101,9 @@ public class ImageComponents extends JFrame implements ActionListener {
      * @return
      */
     private int getYcoord(int pixelID) {
-        return pixelID/w;
+        return pixelID / w;
     }
+
     JPanel viewPanel; // Where the image will be painted.
     JPopupMenu popup;
     JMenuBar menuBar;
@@ -390,14 +392,44 @@ public class ImageComponents extends JFrame implements ActionListener {
     
     void computeConnectedComponents() {
         int count = 0;
-        for(int[] pixelRow : parentID) {
-            for(int currentParentId : pixelRow) {
-                if (currentParentId == -1) {
-                    count += 1;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int currPixelID = (y) * w + x;
+                int neighborPixelID = y * w + x + 1;
+                if (x < w - 1 && find(currPixelID) != find(neighborPixelID)
+                        && biWorking.getRGB(x, y) == biWorking.getRGB(x + 1, y)) {
+                    union(currPixelID, neighborPixelID);
+                    count++;
+                }
+                neighborPixelID = (y + 1) * w + x;
+                if (y < h - 1 && find(currPixelID) != find(neighborPixelID)
+                        && biWorking.getRGB(x, y) == biWorking.getRGB(x, y + 1)) {
+                    union(currPixelID, neighborPixelID);
+                    count++;
                 }
             }
         }
-        System.out.println("The number of connected components in this image is: " +  count);
+        System.out.println("The number of times that the method UNION was called for this image is: " + count + ".");
+        count = 0;
+        HashMap<Integer, Integer> componentNumber = new HashMap<Integer, Integer>();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                if (parentID[y][x] == -1) {
+                    componentNumber.put(y * w + x, count);
+                    count++;
+                }
+            }
+        }
+        System.out.println("The number of connected components in this image is: " + count + ".");
+        ProgressiveColors progressiveColors = new ProgressiveColors();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                Integer rootID = find(y * w + x);
+                int[] rgb = progressiveColors.progressiveColor(componentNumber.get(rootID));
+                putPixel(biWorking, x, y, rgb[0], rgb[1], rgb[2]);
+            }
+        }
+        repaint();
     }
 
     /* This main method can be used to run the application. */
