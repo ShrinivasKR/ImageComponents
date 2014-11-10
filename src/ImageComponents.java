@@ -54,9 +54,43 @@ public class ImageComponents extends JFrame implements ActionListener {
     int h; // height of the current image.
 
     int[][] parentID; // For your forest of up-trees.
-    int find(int pixelID) {return -1;}         // Part of your UNION-FIND implementation. You need to complete the implementation of this.
-    void union(int pixelID1, int pixelID2) {}  // Another part of your UNION-FIND implementation.  Also complete this one.
-    
+
+
+    int find(int pixelID) {
+        while(parentID[getYcoord(pixelID)][getXcoord(pixelID)] != -1) {
+            pixelID = parentID[getYcoord(pixelID)][getXcoord(pixelID)];
+        }
+        return pixelID;
+    }// Part of your UNION-FIND implementation. You need to complete the implementation of this.
+
+    void union(int pixelID1, int pixelID2) {
+        pixelID1 = find(pixelID1);
+        pixelID2 = find(pixelID2);
+        int x1 = getXcoord(pixelID1);
+        int x2 = getXcoord(pixelID2);
+        int y1 = getXcoord(pixelID1);
+        int y2 = getXcoord(pixelID2);
+        if(x1 != x2) {
+            if(x1 < x2) {
+                parentID[y2][x2] = pixelID1;
+            } else {
+                parentID[y1][x1] = pixelID2;
+            }
+        } else {
+            if(y1 < y2) {
+                parentID[y2][x2] = pixelID1;
+            } else {
+                parentID[y1][x1] = pixelID2;
+            }
+        }
+    }  // Another part of your UNION-FIND implementation.  Also complete this one.
+
+    private int getXcoord(int pixelID) {
+        return pixelID%w;
+    }
+    private int getYcoord(int pixelID) {
+        return pixelID/w;
+    }
     JPanel viewPanel; // Where the image will be painted.
     JPopupMenu popup;
     JMenuBar menuBar;
@@ -79,7 +113,10 @@ public class ImageComponents extends JFrame implements ActionListener {
         double euclideanDistance(Color c2) {
             // TODO
             // Replace this to return the distance between this color and c2.
-            return 0.0;
+            int differenceRed = r - c2.r;
+            int differenceGreen = g - c2.g;
+            int differenceBlue = b - c2.b;
+            return Math.sqrt((Math.pow(differenceRed, 2)  + Math.pow(differenceGreen, 2) + Math.pow(differenceBlue, 2)));
         }
     }
 
@@ -213,9 +250,19 @@ public class ImageComponents extends JFrame implements ActionListener {
             biFiltered = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
             pack(); // Lay out the JFrame and set its size.
             repaint();
+            initializeParentIDs();
         } catch (IOException e) {
             System.out.println("Image could not be read: "+filename);
             System.exit(1);
+        }
+    }
+
+    private void initializeParentIDs() {
+        parentID = new int[h][w];
+        for(int y = 0; y < h; y++) {
+            for(int x = 0; x < w; x++) {
+                parentID[y][x] = -1;
+            }
         }
     }
 
@@ -331,7 +378,15 @@ public class ImageComponents extends JFrame implements ActionListener {
 
     
     void computeConnectedComponents() {
-    	
+        int count = 0;
+        for(int[] pixelRow : parentID) {
+            for(int currentParentId : pixelRow) {
+                if (currentParentId == -1) {
+                    count += 1;
+                }
+            }
+        }
+        System.out.println("The number of connected components in this image is: " +  count);
     }
 
     /* This main method can be used to run the application. */
