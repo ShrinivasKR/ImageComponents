@@ -1,7 +1,8 @@
 /*
  * ImageComponents.java
  * Starter code for A4 // Change this line to "A4 Solution by " + Shrinivas Kopparam Ramanath and UWNetID: shrini.
- * 
+ * Allows image to be edited different ways using various tools.
+ * Also applies the UNION-FIND technique to recolor the images.
  * 
  * CSE 373, University of Washington, Autumn 2014.
  * 
@@ -58,7 +59,7 @@ public class ImageComponents extends JFrame implements ActionListener {
     /**
      * Finds the root of the given pixelID
      * @param pixelID
-     * @return
+     * @return the pixelID of the root
      */
     int find(int pixelID) {
         while(parentID[getYcoord(pixelID)][getXcoord(pixelID)] != -1) {
@@ -68,9 +69,9 @@ public class ImageComponents extends JFrame implements ActionListener {
     }// Part of your UNION-FIND implementation. You need to complete the implementation of this.
 
     /**
-     * 
-     * @param pixelID1
-     * @param pixelID2
+     * Unions the two pixels based on the instructor's provided rules
+     * @param pixelID1 one pixel
+     * @param pixelID2 another pixel
      */
     void union(int pixelID1, int pixelID2) {
         pixelID1 = find(pixelID1);
@@ -89,7 +90,7 @@ public class ImageComponents extends JFrame implements ActionListener {
     /**
      * Returns the x coordinate of a pixel
      * @param pixelID
-     * @return
+     * @return x coordinate
      */
     private int getXcoord(int pixelID) {
         return pixelID % w;
@@ -98,7 +99,7 @@ public class ImageComponents extends JFrame implements ActionListener {
     /**
      * Returns the y coordinate of a pixel
      * @param pixelID
-     * @return
+     * @return y coordinate
      */
     private int getYcoord(int pixelID) {
         return pixelID / w;
@@ -123,6 +124,11 @@ public class ImageComponents extends JFrame implements ActionListener {
             this.r = r; this.g = g; this.b = b;    		
         }
 
+        /**
+         * Calculates the euclidian distance between the current pixel and another
+         * @param c2 other pixel
+         * @return Euclidian distance between the two pixels
+         */
         double euclideanDistance(Color c2) {
             // TODO
             // Replace this to return the distance between this color and c2.
@@ -250,6 +256,7 @@ public class ImageComponents extends JFrame implements ActionListener {
      * as an image.  If that works, replace any current image by the new one.
      * Re-make the biFiltered buffered image, too, because its size probably
      * needs to be different to match that of the new image.
+     * Also makes each pixel a root
      */
     public void loadImage(String filename) {
         try {
@@ -270,6 +277,9 @@ public class ImageComponents extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Assign each pixel in the image before the unions occur
+     */
     private void initializeParentIDs() {
         parentID = new int[h][w];
         for(int y = 0; y < h; y++) {
@@ -389,22 +399,25 @@ public class ImageComponents extends JFrame implements ActionListener {
         bi.setRGB(x,  y, rgb);
     }
 
-    
+    /**
+     * Computes relationships between pixels and performs recoloration
+     * Also keeps track of the number of unions performed
+     */
     void computeConnectedComponents() {
         int count = 0;
         for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int currPixelID = (y) * w + x;
-                int neighborPixelID = y * w + x + 1;
-                if (x < w - 1 && find(currPixelID) != find(neighborPixelID)
-                        && biWorking.getRGB(x, y) == biWorking.getRGB(x + 1, y)) {
-                    union(currPixelID, neighborPixelID);
+            for (int x = 0; x < w; x++) { // joins edges between pixels based on Instructor specifications
+                int currentPixelID = (y) * w + x;
+                int neighboringPixelID = y * w + x + 1;
+                if (x < w - 1 && find(currentPixelID) != find(neighboringPixelID) //compares to neighboring pixel to the right
+                        && biWorking.getRGB(x, y) == biWorking.getRGB(x + 1, y)) { //unions if the pixel exists and parents aren't same but colors are
+                    union(currentPixelID, neighboringPixelID);
                     count++;
                 }
-                neighborPixelID = (y + 1) * w + x;
-                if (y < h - 1 && find(currPixelID) != find(neighborPixelID)
+                neighboringPixelID = (y + 1) * w + x;
+                if (y < h - 1 && find(currentPixelID) != find(neighboringPixelID) //does the same as the above except compares to the pixel below
                         && biWorking.getRGB(x, y) == biWorking.getRGB(x, y + 1)) {
-                    union(currPixelID, neighborPixelID);
+                    union(currentPixelID, neighboringPixelID);
                     count++;
                 }
             }
@@ -412,7 +425,7 @@ public class ImageComponents extends JFrame implements ActionListener {
         System.out.println("The number of times that the method UNION was called for this image is: " + count + ".");
         count = 0;
         HashMap<Integer, Integer> componentNumber = new HashMap<Integer, Integer>();
-        for (int y = 0; y < h; y++) {
+        for (int y = 0; y < h; y++) { //tracks the amount of roots
             for (int x = 0; x < w; x++) {
                 if (parentID[y][x] == -1) {
                     componentNumber.put(y * w + x, count);
@@ -422,7 +435,7 @@ public class ImageComponents extends JFrame implements ActionListener {
         }
         System.out.println("The number of connected components in this image is: " + count + ".");
         ProgressiveColors progressiveColors = new ProgressiveColors();
-        for (int y = 0; y < h; y++) {
+        for (int y = 0; y < h; y++) { //recolors the images of common roots
             for (int x = 0; x < w; x++) {
                 Integer rootID = find(y * w + x);
                 int[] rgb = progressiveColors.progressiveColor(componentNumber.get(rootID));
