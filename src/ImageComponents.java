@@ -113,6 +113,7 @@ public class ImageComponents extends JFrame implements ActionListener {
     JMenuItem lowPassItem, highPassItem, photoNegItem, RGBThreshItem;
 
     JMenuItem CCItem1;
+    JMenuItem CCItem2;
     JMenuItem aboutItem, helpItem;
     
     JFileChooser fileChooser; // For loading and saving images.
@@ -209,6 +210,9 @@ public class ImageComponents extends JFrame implements ActionListener {
         CCItem1 = new JMenuItem("Compute Connected Components and Recolor");
         CCItem1.addActionListener(this);
         ccMenu.add(CCItem1);
+        CCItem2 = new JMenuItem("Segment Image and Recolor");
+        CCItem2.addActionListener(this);
+        ccMenu.add(CCItem2);
         
         // Create the Help menu's item.
         aboutItem = new JMenuItem("About");
@@ -338,8 +342,24 @@ public class ImageComponents extends JFrame implements ActionListener {
     }
 
     void handleCCMenu(JMenuItem mi) {
-        System.out.println("A connected components menu item was selected.");
-        if (mi==CCItem1) { computeConnectedComponents(); }
+
+        if (mi==CCItem1) {
+            computeConnectedComponents();
+            System.out.println("A connected components menu item was selected.");
+        }
+        if (mi==CCItem2) {
+            int nregions = 25; // default value.
+            String inputValue = JOptionPane.showInputDialog("Please input the number of regions desired");
+            try {
+                nregions = (new Integer(inputValue)).intValue();
+            }
+            catch(Exception e) {
+                System.out.println(e);
+                System.out.println("That did not convert to an integer. Using the default: 25.");
+            }
+            System.out.println("nregions is "+nregions);
+            // Call your image segmentation method here.
+        }
     }
     void handleHelpMenu(JMenuItem mi){
         System.out.println("A help menu item was selected.");
