@@ -28,13 +28,10 @@ import java.awt.image.Kernel;
 import java.awt.image.LookupOp;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
+import java.util.PriorityQueue;
 
 import javax.imageio.ImageIO;
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -48,7 +45,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 public class ImageComponents extends JFrame implements ActionListener {
     public static ImageComponents appInstance; // Used in main().
 
-    String startingImage = "gettysburg-address-p1.png";
+    String startingImage = "donut2.png";
     BufferedImage biTemp, biWorking, biFiltered; // These hold arrays of pixels.
     Graphics gOrig, gWorking; // Used to access the drawImage method.
     int w; // width of the current image.
@@ -130,16 +127,39 @@ public class ImageComponents extends JFrame implements ActionListener {
          * @param c2 other pixel
          * @return Euclidian distance between the two pixels
          */
-        double euclideanDistance(Color c2) {
+        int euclideanDistance(Color c2) {
             // TODO
             // Replace this to return the distance between this color and c2.
             int differenceRed = r - c2.r;
             int differenceGreen = g - c2.g;
             int differenceBlue = b - c2.b;
-            return Math.sqrt((Math.pow(differenceRed, 2)  + Math.pow(differenceGreen, 2) + Math.pow(differenceBlue, 2)));
+            return (differenceRed * differenceRed  + differenceGreen * differenceGreen + differenceBlue * differenceBlue);
         }
     }
 
+    public class Edge implements Comparable<Edge> {
+        private int endpoint0, endpoint1, weight;
+        public Edge(int endpoint0, int endpoint1, int weight) {
+            this.endpoint0 = endpoint0;
+            this.endpoint1 = endpoint1;
+            this.weight = weight;
+        }
+        public int getEndPoint0() {
+            return endpoint0;
+        }
+        public int getEndpoint1() {
+            return endpoint1;
+        }
+        public int compareTo(Edge e2) {
+            if((this.weight < e2.weight)) {
+            return -1;
+            } else if(this.weight == e2.weight) {
+                return 0;
+            } else {
+                return 1;
+            }
+        }
+    }
 
     // Some image manipulation data definitions that won't change...
     static LookupOp PHOTONEG_OP, RGBTHRESH_OP;
@@ -274,7 +294,6 @@ public class ImageComponents extends JFrame implements ActionListener {
             biFiltered = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
             pack(); // Lay out the JFrame and set its size.
             repaint();
-            initializeParentIDs();
         } catch (IOException e) {
             System.out.println("Image could not be read: "+filename);
             System.exit(1);
@@ -359,6 +378,7 @@ public class ImageComponents extends JFrame implements ActionListener {
             }
             System.out.println("nregions is "+nregions);
             // Call your image segmentation method here.
+            segmentImage(nregions);
         }
     }
     void handleHelpMenu(JMenuItem mi){
@@ -424,6 +444,7 @@ public class ImageComponents extends JFrame implements ActionListener {
      * Also keeps track of the number of unions performed
      */
     void computeConnectedComponents() {
+        initializeParentIDs();
         int count = 0;
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) { // joins edges between pixels based on Instructor specifications
@@ -443,9 +464,49 @@ public class ImageComponents extends JFrame implements ActionListener {
             }
         }
         System.out.println("The number of times that the method UNION was called for this image is: " + count + ".");
-        count = 0;
+        recolorImage();
+    }
+
+    private void segmentImage(int givenNumSegments) {
+        initializeParentIDs();
+        PriorityQueue<Edge> edges = new PriorityQueue<Edge>();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int currPixelID = (y) * w + x;
+                int currPixelRGB = biWorking.getRGB(getXcoord(currPixelID), getYcoord(currPixelID));
+                Color currColor = new Color(currPixelRGB >> 16 & 255, currPixelRGB >> 8 & 255, currPixelRGB & 255);
+                if (x < w - 1 ) {
+                    int neighborPixelID = y * w + x + 1;
+                    int neighborPixelRGB = biWorking.getRGB(getXcoord(neighborPixelID), getYcoord(neighborPixelID));
+                    Color neighborColor = new Color(neighborPixelRGB >> 16 & 255, neighborPixelRGB >> 8 & 255, neighborPixelRGB & 255);
+                    double colorDist = currColor.euclideanDistance(neighborColor);
+                    edges.add(new Edge(currPixelID, neighborPixelID, (int) (colorDist * colorDist)));
+                }
+                if (y < h - 1) {
+                    int neighborPixelID = (y + 1) * w + x;
+                    int neighborPixelRGB = biWorking.getRGB(getXcoord(neighborPixelID), getYcoord(neighborPixelID));
+                    Color neighborColor = new Color(neighborPixelRGB >> 16 & 255, neighborPixelRGB >> 8 & 255, neighborPixelRGB & 255);
+                    double colorDist = currColor.euclideanDistance(neighborColor);
+                    edges.add(new Edge(currPixelID, neighborPixelID, (int) (colorDist * colorDist)));
+                }
+            }
+        }
+        for (int numSegments = w * h; numSegments > givenNumSegments;) {
+            Edge currentEdge = edges.remove();
+            int pixelID0 = currentEdge.getEndPoint0();
+            int pixelID1 = currentEdge.getEndpoint1();
+            if (find(pixelID0) != find(pixelID1)) {
+                union(pixelID0, pixelID1);
+                numSegments--;
+            }
+        }
+        recolorImage();
+    }
+
+    private void recolorImage() {
+        int count = 0;
         HashMap<Integer, Integer> componentNumber = new HashMap<Integer, Integer>();
-        for (int y = 0; y < h; y++) { //tracks the amount of roots
+        for (int y = 0; y < h; y++) { //Counts the total number of roots
             for (int x = 0; x < w; x++) {
                 if (parentID[y][x] == -1) {
                     componentNumber.put(y * w + x, count);
@@ -455,7 +516,7 @@ public class ImageComponents extends JFrame implements ActionListener {
         }
         System.out.println("The number of connected components in this image is: " + count + ".");
         ProgressiveColors progressiveColors = new ProgressiveColors();
-        for (int y = 0; y < h; y++) { //recolors the images of common roots
+        for (int y = 0; y < h; y++) { //Recolors the image based on the current pixel's root.
             for (int x = 0; x < w; x++) {
                 Integer rootID = find(y * w + x);
                 int[] rgb = progressiveColors.progressiveColor(componentNumber.get(rootID));
