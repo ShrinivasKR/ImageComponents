@@ -2,7 +2,9 @@
  * ImageComponents.java
  * Starter code for A4 // Change this line to "A4 Solution by " + Shrinivas Kopparam Ramanath and UWNetID: shrini.
  * Allows image to be edited different ways using various tools.
- * Also applies the UNION-FIND technique to recolor the images.
+ * Also applies the UNION-FIND technique to compress and recolor the images.
+ * Also Performs Extra Credit a which adds an option to do the segmentation on the basis of a
+ * given DELTA value rather than the nregions value
  * 
  * CSE 373, University of Washington, Autumn 2014.
  * 
@@ -53,13 +55,10 @@ public class ImageComponents extends JFrame implements ActionListener {
 
     int[][] parentID; // For your forest of up-trees.
 
-    private static final int NUM_SEGMENTS_CHECK = 0;
-    private static final int DELTA_CHECK = 1;
-
     /**
      * Finds the root of the given pixelID
-     * @param pixelID
-     * @return the pixelID of the root
+     * @param pixelID of a pixel in the image
+     * @return the pixelID of the parent
      */
     int find(int pixelID) {
         while(parentID[getYcoord(pixelID)][getXcoord(pixelID)] != -1) {
@@ -69,21 +68,21 @@ public class ImageComponents extends JFrame implements ActionListener {
     }// Part of your UNION-FIND implementation. You need to complete the implementation of this.
 
     /**
-     * Unions the two pixels based on the instructor's provided rules
+     * Unions the two pixels with the smaller pixel id as the parent
      * @param pixelID1 one pixel
      * @param pixelID2 another pixel
      */
     void union(int pixelID1, int pixelID2) {
-        pixelID1 = find(pixelID1);
-        pixelID2 = find(pixelID2);
+        pixelID1 = find(pixelID1); //finds the root of the first pixel
+        pixelID2 = find(pixelID2); //finds the root of the second pixel
         int x1 = getXcoord(pixelID1);
         int x2 = getXcoord(pixelID2);
         int y1 = getYcoord(pixelID1);
         int y2 = getYcoord(pixelID2);
-        if(pixelID1 < pixelID2) {
-            parentID[y2][x2] = pixelID1;
+        if(pixelID1 < pixelID2) { //if the first pixel's root is lower than the second's
+            parentID[y2][x2] = pixelID1; // make the first pixel the parent of the second pixel
         } else {
-            parentID[y1][x1] = pixelID2;
+            parentID[y1][x1] = pixelID2; // make the second pixel the parent of the first pixel
         }
     }  // Another part of your UNION-FIND implementation.  Also complete this one.
 
@@ -112,13 +111,19 @@ public class ImageComponents extends JFrame implements ActionListener {
     JMenuItem loadImageItem, saveAsItem, exitItem;
     JMenuItem lowPassItem, highPassItem, photoNegItem, RGBThreshItem;
 
+    /**
+     *
+     */
     JMenuItem CCItem1;
     JMenuItem CCItem2;
     JMenuItem CCItem3;
     JMenuItem aboutItem, helpItem;
     
     JFileChooser fileChooser; // For loading and saving images.
-    
+
+    /**
+     * Color which stores r,g,b values of a color
+     */
     public class Color {
         int r, g, b;
 
@@ -132,28 +137,63 @@ public class ImageComponents extends JFrame implements ActionListener {
          * @return Euclidian distance between the two pixels
          */
         int euclideanDistance(Color c2) {
-            // TODO
-            // Replace this to return the distance between this color and c2.
-            int differenceRed = r - c2.r;
-            int differenceGreen = g - c2.g;
-            int differenceBlue = b - c2.b;
+            int differenceRed = r - c2.r;   //distance between the red
+            int differenceGreen = g - c2.g; //distance between the green
+            int differenceBlue = b - c2.b;  //distance between the blue
             return (differenceRed * differenceRed  + differenceGreen * differenceGreen + differenceBlue * differenceBlue);
         }
     }
 
+    /**
+     * Edge between a pair of adjacent pixels, also carries a weight
+     */
     public class Edge implements Comparable<Edge> {
+        /**
+         * Weight, and the two endpoints of the edge
+         */
         private int endpoint0, endpoint1, weight;
-        public Edge(int endpoint0, int endpoint1, int weight) {
+
+        // Creates a new edge with given endpoints and weight
+        public Edge(int endpoint0, int endpoint1) {
             this.endpoint0 = endpoint0;
             this.endpoint1 = endpoint1;
-            this.weight = weight;
+            int currentPixelRGB = biWorking.getRGB(getXcoord(endpoint0), getYcoord(endpoint0)); //RGB of current pixel
+            Color currentPixelColor = new Color(currentPixelRGB >> 16 & 255, currentPixelRGB >> 8 & 255, currentPixelRGB & 255); //Determines color of current pixel
+            int neighborPixelRGB = biWorking.getRGB(getXcoord(endpoint1), getYcoord(endpoint1)); //RBG of neighbor pixel
+            Color neighborPixelColor = new Color(neighborPixelRGB >> 16 & 255, neighborPixelRGB >> 8 & 255, neighborPixelRGB & 255); //Determines color of neighboring pixel
+            double colorDistance = currentPixelColor.euclideanDistance(neighborPixelColor); //Distance between two pixels
+            this.weight = (int) (colorDistance * colorDistance); //The color distance squared
         }
+
+        /**
+         * To find the endpoint0
+         * @return endpoint0
+         */
         public int getEndPoint0() {
             return endpoint0;
         }
+
+        /**
+         * To find the endpoint1
+         * @return endpoint1
+         */
         public int getEndpoint1() {
             return endpoint1;
         }
+
+        /**
+         * To get the color distance between pixels
+         * @return weight of distance between pixels
+         */
+        public  int getWeight() {
+            return weight;
+        }
+
+        /**
+         * Allows for the comparison of two edges based on their weight
+         * @param e2 another edge
+         * @return whether this edge's weight is equal to, greater than, or lesser than the other edge's weight
+         */
         public int compareTo(Edge e2) {
             if((this.weight < e2.weight)) {
             return -1;
@@ -234,10 +274,10 @@ public class ImageComponents extends JFrame implements ActionListener {
         CCItem1 = new JMenuItem("Compute Connected Components and Recolor");
         CCItem1.addActionListener(this);
         ccMenu.add(CCItem1);
-        CCItem2 = new JMenuItem("Segment Image and Recolor");
+        CCItem2 = new JMenuItem("Segment Image and Recolor using nregions");
         CCItem2.addActionListener(this);
         ccMenu.add(CCItem2);
-        CCItem3 = new JMenuItem("Segment ");
+        CCItem3 = new JMenuItem("Segment Image Using a Maximum Pixel DELTA ");
         CCItem3.addActionListener(this);
         ccMenu.add(CCItem3);
 
@@ -383,7 +423,7 @@ public class ImageComponents extends JFrame implements ActionListener {
             }
             System.out.println("nregions is "+nregions);
             // Call your image segmentation method here.
-            segmentImage(NUM_SEGMENTS_CHECK, nregions);
+            segmentImage(0, nregions);
 
         }
         if (mi==CCItem3) {
@@ -398,7 +438,7 @@ public class ImageComponents extends JFrame implements ActionListener {
             }
             System.out.println("delta is "+ delta);
             // Call your image segmentation method here.
-            segmentImage(DELTA_CHECK, delta);
+            segmentImage(1, delta);
         }
     }
     void handleHelpMenu(JMenuItem mi){
@@ -466,6 +506,9 @@ public class ImageComponents extends JFrame implements ActionListener {
     void computeConnectedComponents() {
         initializeParentIDs();
         int count = 0;
+
+        // Connects components if they are the same color and their roots
+        // are not the same
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) { // joins edges between pixels based on Instructor specifications
                 int currentPixelID = (y) * w + x;
@@ -487,46 +530,38 @@ public class ImageComponents extends JFrame implements ActionListener {
         recolorImage();
     }
 
-    private void segmentImage(int segmentStyle, int givenValue) {
-        initializeParentIDs();
+    /**
+     * Creates various regions of segments of colors
+     * @param segmentType the method we want to use to segment the image
+     * @param givenValue the number of segments or the delta value
+     */
+    private void segmentImage(int segmentType, int givenValue) {
+        initializeParentIDs();  //Sets the uptree up
         PriorityQueue<Edge> edges = new PriorityQueue<Edge>();
+        //Creates the weighted pixel graph
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int currPixelID = (y) * w + x;
-                int currPixelRGB = biWorking.getRGB(getXcoord(currPixelID), getYcoord(currPixelID));
-                Color currColor = new Color(currPixelRGB >> 16 & 255, currPixelRGB >> 8 & 255, currPixelRGB & 255);
                 if (x < w - 1 ) {
                     int neighborPixelID = y * w + x + 1;
-                    int neighborPixelRGB = biWorking.getRGB(getXcoord(neighborPixelID), getYcoord(neighborPixelID));
-                    Color neighborColor = new Color(neighborPixelRGB >> 16 & 255, neighborPixelRGB >> 8 & 255, neighborPixelRGB & 255);
-                    double colorDist = currColor.euclideanDistance(neighborColor);
-                    edges.add(new Edge(currPixelID, neighborPixelID, (int) (colorDist * colorDist)));
+                    edges.add(new Edge(currPixelID, neighborPixelID));
                 }
                 if (y < h - 1) {
                     int neighborPixelID = (y + 1) * w + x;
-                    int neighborPixelRGB = biWorking.getRGB(getXcoord(neighborPixelID), getYcoord(neighborPixelID));
-                    Color neighborColor = new Color(neighborPixelRGB >> 16 & 255, neighborPixelRGB >> 8 & 255, neighborPixelRGB & 255);
-                    double colorDist = currColor.euclideanDistance(neighborColor);
-                    edges.add(new Edge(currPixelID, neighborPixelID, (int) (colorDist * colorDist)));
+                    edges.add(new Edge(currPixelID, neighborPixelID));
                 }
             }
         }
-        switch(segmentStyle) {
-            case DELTA_CHECK:
-                if (edges.size() > 0) {
-                    Edge currentEdge = edges.remove();
-                    while (currentEdge != null && currentEdge.weight <= givenValue) {
-                        int pixelID0 = currentEdge.getEndPoint0();
-                        int pixelID1 = currentEdge.getEndpoint1();
-                        if (find(pixelID0) != find(pixelID1)) {
-                            union(pixelID0, pixelID1);
-                        }
-                        currentEdge = (edges.size() > 0) ? edges.remove() : null;
-                    }
-                }
-                break;
-            case NUM_SEGMENTS_CHECK:
+        /**
+         * Segments the image either on the number of segments or the delta value given as requested by the user
+         */
+        switch(segmentType) {
+            /**
+             * Segments based on given nregions
+             */
+            case 0:
                 int numSegments = w * h;
+                //Segment until the number of segments created matches the desired number
                 while (numSegments > givenValue) {
                     Edge currentEdge = edges.remove();
                     int pixelID0 = currentEdge.getEndPoint0();
@@ -537,11 +572,31 @@ public class ImageComponents extends JFrame implements ActionListener {
                     }
                 }
                 break;
+            /**
+             * Segments based on max DELTA value
+             */
+            case 1:
+                if (edges.size() > 0) {
+                    Edge currentEdge = edges.remove();
+                    //Segments until the weight of the edge is bigger than given delta
+                    //or no more edges exist
+                    while (currentEdge != null && currentEdge.weight <= givenValue) {
+                        int pixelID0 = currentEdge.getEndPoint0();
+                        int pixelID1 = currentEdge.getEndpoint1();
+                        if (find(pixelID0) != find(pixelID1)) {
+                            union(pixelID0, pixelID1);
+                        }
+                        currentEdge = (edges.size() > 0) ? edges.remove() : null;
+                    }
+                }
+                break;
         }
-
         recolorImage();
     }
 
+    /**
+     * Recolors the image
+     */
     private void recolorImage() {
         int count = 0;
         HashMap<Integer, Integer> componentNumber = new HashMap<Integer, Integer>();
